@@ -1,45 +1,7 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-/* ─── highlight.js dark theme (VS Code Dark+ inspired) ────────── */
-.hljs {
-  background: transparent;
-  color: #24292f;
-}
-.hljs-keyword { color: #cf222e; }
-.hljs-built_in { color: #8250df; }
-.hljs-type { color: #953800; }
-.hljs-literal { color: #0550ae; }
-.hljs-number { color: #0550ae; }
-.hljs-string { color: #0a3069; }
-.hljs-regexp { color: #0a3069; }
-.hljs-symbol { color: #24292f; }
-.hljs-variable { color: #953800; }
-.hljs-template-variable { color: #953800; }
-.hljs-link { color: #0a3069; }
-.hljs-selector-id { color: #8250df; }
-.hljs-selector-class { color: #8250df; }
-.hljs-selector-attr { color: #116329; }
-.hljs-selector-pseudo { color: #116329; }
-.hljs-title { color: #8250df; }
-.hljs-title.function_ { color: #8250df; }
-.hljs-title.class_ { color: #8250df; }
-.hljs-tag { color: #116329; }
-.hljs-name { color: #116329; }
-.hljs-attr { color: #0550ae; }
-.hljs-attribute { color: #0550ae; }
-.hljs-comment { color: #6e7781; font-style: italic; }
-.hljs-doctag { color: #6e7781; }
-.hljs-meta { color: #953800; }
-.hljs-meta .hljs-keyword { color: #953800; }
-.hljs-meta .hljs-string { color: #0a3069; }
-.hljs-section { color: #8250df; }
-.hljs-subst { color: #24292f; }
-.hljs-deletion { color: #cf222e; background: rgba(255,235,233,0.9); }
-.hljs-addition { color: #116329; background: rgba(218,251,225,0.9); }
-.hljs-params { color: #24292f; }
-.hljs-property { color: #0550ae; }
-.hljs-punctuation { color: #57606a; }
+/* Code highlighting is handled by prism-react-renderer (inline styles) */
 
 /* ─── Tailwind Theme Override (matches prototype design system) ─── */
 @theme {

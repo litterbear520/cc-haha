@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAdapterStore } from '../stores/adapterStore'
 import { useTranslation } from '../i18n'
 import { Input } from '../components/shared/Input'
@@ -7,7 +7,7 @@ import { DirectoryPicker } from '../components/shared/DirectoryPicker'
 
 export function AdapterSettings() {
   const t = useTranslation()
-  const { config, isLoading, fetchConfig, updateConfig } = useAdapterStore()
+  const { config, isLoading, fetchConfig, updateConfig, generatePairingCode, removePairedUser } = useAdapterStore()
 
   // Server
   const [serverUrl, setServerUrl] = useState('')
@@ -28,6 +28,10 @@ export function AdapterSettings() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle')
   const [saveError, setSaveError] = useState('')
+
+  // Pairing
+  const [pairingCode, setPairingCode] = useState<string | null>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
 
   useEffect(() => {
     fetchConfig()
@@ -94,6 +98,35 @@ export function AdapterSettings() {
     }
   }
 
+  const handleGenerateCode = useCallback(async () => {
+    setIsGenerating(true)
+    try {
+      const code = await generatePairingCode()
+      setPairingCode(code)
+    } catch (err) {
+      console.error('Failed to generate pairing code:', err)
+    } finally {
+      setIsGenerating(false)
+    }
+  }, [generatePairingCode])
+
+  const handleUnbind = useCallback(async (platform: 'telegram' | 'feishu', userId: string | number) => {
+    if (!confirm(t('settings.adapters.unbindConfirm'))) return
+    await removePairedUser(platform, userId)
+    await fetchConfig()
+  }, [removePairedUser, fetchConfig, t])
+
+  // Collect all paired users across platforms
+  const allPairedUsers = [
+    ...(config.telegram?.pairedUsers ?? []).map((u) => ({ ...u, platform: 'telegram' as const })),
+    ...(config.feishu?.pairedUsers ?? []).map((u) => ({ ...u, platform: 'feishu' as const })),
+  ]
+
+  // Check pairing expiry
+  const pairingExpiry = config.pairing?.expiresAt
+  const isPairingActive = pairingExpiry ? Date.now() < pairingExpiry : false
+  const minutesLeft = pairingExpiry ? Math.max(0, Math.ceil((pairingExpiry - Date.now()) / 60000)) : 0
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12 text-[var(--color-text-tertiary)]">
@@ -109,6 +142,75 @@ export function AdapterSettings() {
       <div>
         <p className="text-sm text-[var(--color-text-secondary)]">{t('settings.adapters.description')}</p>
       </div>
+
+      {/* Pairing */}
+      <section className="rounded-xl border border-[var(--color-border)] overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 bg-[var(--color-surface-hover)] border-b border-[var(--color-border)]">
+          <span className="material-symbols-outlined text-[18px] text-[var(--color-text-secondary)]">link</span>
+          <span className="text-sm font-semibold text-[var(--color-text-primary)]">{t('settings.adapters.pairing')}</span>
+        </div>
+        <div className="p-4 space-y-4">
+          <p className="text-sm text-[var(--color-text-secondary)]">{t('settings.adapters.pairingDesc')}</p>
+
+          {/* Generate code */}
+          <div className="flex items-center gap-3">
+            <Button onClick={handleGenerateCode} loading={isGenerating}>
+              {pairingCode || isPairingActive ? t('settings.adapters.regenerateCode') : t('settings.adapters.generateCode')}
+            </Button>
+            {pairingCode && (
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-2xl font-bold tracking-[0.3em] text-[var(--color-brand)]">
+                  {pairingCode}
+                </span>
+                <span className="text-xs text-[var(--color-text-tertiary)]">
+                  {t('settings.adapters.codeExpiresIn')} 60 {t('settings.adapters.minutes')}
+                </span>
+              </div>
+            )}
+            {!pairingCode && isPairingActive && (
+              <span className="text-xs text-[var(--color-text-tertiary)]">
+                {t('settings.adapters.codeExpiresIn')} {minutesLeft} {t('settings.adapters.minutes')}
+              </span>
+            )}
+          </div>
+          {pairingCode && (
+            <p className="text-xs text-[var(--color-text-tertiary)]">{t('settings.adapters.pairingCodeHint')}</p>
+          )}
+
+          {/* Paired users list */}
+          <div>
+            <h4 className="text-sm font-medium text-[var(--color-text-primary)] mb-2">{t('settings.adapters.pairedUsers')}</h4>
+            {allPairedUsers.length === 0 ? (
+              <p className="text-sm text-[var(--color-text-tertiary)]">{t('settings.adapters.noPairedUsers')}</p>
+            ) : (
+              <div className="space-y-2">
+                {allPairedUsers.map((user) => (
+                  <div
+                    key={`${user.platform}-${user.userId}`}
+                    className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--color-surface-hover)]"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--color-surface)] text-[var(--color-text-secondary)]">
+                        {t(`settings.adapters.platform.${user.platform}`)}
+                      </span>
+                      <span className="text-sm text-[var(--color-text-primary)]">{user.displayName}</span>
+                      <span className="text-xs text-[var(--color-text-tertiary)]">
+                        {new Date(user.pairedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleUnbind(user.platform, user.userId)}
+                      className="text-xs text-[var(--color-error)] hover:underline cursor-pointer"
+                    >
+                      {t('settings.adapters.unbind')}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* Server URL */}
       <Input

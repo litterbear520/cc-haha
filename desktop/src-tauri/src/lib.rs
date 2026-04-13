@@ -6,7 +6,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use tauri::{AppHandle, Manager, RunEvent, State};
+use tauri::{
+    menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder},
+    AppHandle, Emitter, Manager, RunEvent, State,
+};
 use tauri_plugin_shell::{
     process::{CommandChild, CommandEvent},
     ShellExt,
@@ -302,6 +305,63 @@ pub fn run() {
             get_server_url,
             restart_adapters_sidecar
         ])
+        .menu(|app| {
+            let about_item = MenuItemBuilder::with_id("nav_about", "About Claude Code Haha")
+                .build(app)?;
+            let settings_item = MenuItemBuilder::with_id("nav_settings", "Settings...")
+                .accelerator("CmdOrCtrl+,")
+                .build(app)?;
+
+            let app_submenu = SubmenuBuilder::new(app, "Claude Code Haha")
+                .item(&about_item)
+                .separator()
+                .item(&settings_item)
+                .separator()
+                .services()
+                .separator()
+                .hide()
+                .hide_others()
+                .show_all()
+                .separator()
+                .quit()
+                .build()?;
+
+            let edit_submenu = SubmenuBuilder::new(app, "Edit")
+                .undo()
+                .redo()
+                .separator()
+                .cut()
+                .copy()
+                .paste()
+                .select_all()
+                .build()?;
+
+            let view_submenu = SubmenuBuilder::new(app, "View")
+                .fullscreen()
+                .build()?;
+
+            let window_submenu = SubmenuBuilder::new(app, "Window")
+                .minimize()
+                .maximize()
+                .close_window()
+                .build()?;
+
+            MenuBuilder::new(app)
+                .item(&app_submenu)
+                .item(&edit_submenu)
+                .item(&view_submenu)
+                .item(&window_submenu)
+                .build()
+        })
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            "nav_about" => {
+                let _ = app.emit("native-menu-navigate", "about");
+            }
+            "nav_settings" => {
+                let _ = app.emit("native-menu-navigate", "settings");
+            }
+            _ => {}
+        })
         .setup(|app| {
             let state = app.state::<ServerState>();
             let mut guard = state

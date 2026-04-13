@@ -18,12 +18,18 @@ import { MarkdownRenderer } from '../components/markdown/MarkdownRenderer'
 import { useSkillStore } from '../stores/skillStore'
 import { SkillList } from '../components/skills/SkillList'
 import { SkillDetail } from '../components/skills/SkillDetail'
-
-type SettingsTab = 'providers' | 'permissions' | 'general' | 'adapters' | 'agents' | 'skills' | 'about'
+import { useUIStore, type SettingsTab } from '../stores/uiStore'
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('providers')
+  const pendingSettingsTab = useUIStore((s) => s.pendingSettingsTab)
   const t = useTranslation()
+
+  useEffect(() => {
+    if (!pendingSettingsTab) return
+    setActiveTab(pendingSettingsTab)
+    useUIStore.getState().setPendingSettingsTab(null)
+  }, [pendingSettingsTab])
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-[var(--color-surface)]">

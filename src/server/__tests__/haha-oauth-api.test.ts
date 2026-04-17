@@ -104,6 +104,25 @@ describe('GET /api/haha-oauth/status', () => {
     expect(JSON.stringify(data)).not.toContain('sk-ant-oat01')
     expect(JSON.stringify(data)).not.toContain('sk-ant-ort01')
   })
+
+  test('returns loggedIn=false when stored token is expired and refresh fails', async () => {
+    await hahaOAuthService.saveTokens({
+      accessToken: 'expired-token',
+      refreshToken: 'revoked-refresh-token',
+      expiresAt: Date.now() - 1_000,
+      scopes: ['user:inference'],
+      subscriptionType: 'max',
+    })
+    hahaOAuthService.setRefreshFn(async () => {
+      throw new Error('refresh revoked')
+    })
+
+    const { req, url, segments } = buildReq('GET', '/api/haha-oauth/status')
+    const res = await handleHahaOAuthApi(req, url, segments)
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ loggedIn: false })
+  })
 })
 
 describe('DELETE /api/haha-oauth', () => {

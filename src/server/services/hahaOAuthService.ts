@@ -19,6 +19,7 @@ import {
 } from '../../services/oauth/crypto.js'
 import {
   buildAuthUrl,
+  fetchProfileInfo,
   refreshOAuthToken,
   isOAuthTokenExpired,
   parseScopes,
@@ -47,15 +48,23 @@ export type OAuthSession = {
 }
 
 type RefreshFn = (refreshToken: string, opts?: { scopes?: string[] }) => Promise<OAuthTokens>
+type FetchProfileFn = (
+  accessToken: string,
+) => Promise<{ subscriptionType: SubscriptionType | null }>
 
 const SESSION_TTL_MS = 5 * 60 * 1000
 
 export class HahaOAuthService {
   private sessions = new Map<string, OAuthSession>()
   private refreshFn: RefreshFn = refreshOAuthToken
+  private fetchProfileFn: FetchProfileFn = fetchProfileInfo
 
   setRefreshFn(fn: RefreshFn): void {
     this.refreshFn = fn
+  }
+
+  setFetchProfileFn(fn: FetchProfileFn): void {
+    this.fetchProfileFn = fn
   }
 
   private getOAuthFilePath(): string {
@@ -166,13 +175,14 @@ export class HahaOAuthService {
       session.codeVerifier,
       session.serverPort,
     )
+    const profile = await this.fetchProfileFn(response.access_token)
 
     const tokens: StoredOAuthTokens = {
       accessToken: response.access_token,
       refreshToken: response.refresh_token ?? null,
       expiresAt: Date.now() + response.expires_in * 1000,
       scopes: parseScopes(response.scope),
-      subscriptionType: null,
+      subscriptionType: profile.subscriptionType,
     }
     await this.saveTokens(tokens)
     return tokens
@@ -214,13 +224,13 @@ export class HahaOAuthService {
     return (await res.json()) as OAuthTokenExchangeResponse
   }
 
-  async ensureFreshAccessToken(): Promise<string | null> {
+  async ensureFreshTokens(): Promise<StoredOAuthTokens | null> {
     const tokens = await this.loadTokens()
     if (!tokens) return null
 
-    if (tokens.expiresAt === null) return tokens.accessToken
+    if (tokens.expiresAt === null) return tokens
 
-    if (!isOAuthTokenExpired(tokens.expiresAt)) return tokens.accessToken
+    if (!isOAuthTokenExpired(tokens.expiresAt)) return tokens
 
     if (!tokens.refreshToken) return null
 
@@ -236,7 +246,7 @@ export class HahaOAuthService {
         subscriptionType: refreshed.subscriptionType ?? tokens.subscriptionType,
       }
       await this.saveTokens(updated)
-      return updated.accessToken
+      return updated
     } catch (err) {
       console.error(
         '[HahaOAuthService] token refresh failed:',
@@ -244,6 +254,11 @@ export class HahaOAuthService {
       )
       return null
     }
+  }
+
+  async ensureFreshAccessToken(): Promise<string | null> {
+    const tokens = await this.ensureFreshTokens()
+    return tokens?.accessToken ?? null
   }
 }
 

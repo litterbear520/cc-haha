@@ -11,8 +11,16 @@ import { useTranslation } from '../../i18n'
 
 export function ClaudeOfficialLogin() {
   const t = useTranslation()
-  const { status, isLoading, error, fetchStatus, login, logout, stopPolling } =
-    useHahaOAuthStore()
+  const {
+    status,
+    isLoading,
+    error,
+    fetchStatus,
+    login,
+    logout,
+    startPolling,
+    stopPolling,
+  } = useHahaOAuthStore()
 
   useEffect(() => {
     fetchStatus()
@@ -24,6 +32,7 @@ export function ClaudeOfficialLogin() {
       const { authorizeUrl } = await login()
       try {
         await shellOpen(authorizeUrl)
+        startPolling()
       } catch (err) {
         console.error('[ClaudeOfficialLogin] shellOpen failed:', err)
         useHahaOAuthStore.setState({

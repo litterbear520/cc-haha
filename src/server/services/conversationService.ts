@@ -490,6 +490,7 @@ export class ConversationService {
     ] as const
 
     const cleanEnv = { ...process.env }
+    delete cleanEnv.CLAUDE_CODE_OAUTH_TOKEN
     if (this.shouldStripInheritedProviderEnv()) {
       for (const key of PROVIDER_ENV_KEYS) {
         delete cleanEnv[key]

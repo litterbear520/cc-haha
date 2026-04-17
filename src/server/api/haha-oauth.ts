@@ -73,7 +73,7 @@ export async function handleHahaOAuthApi(
     }
 
     if ((action === undefined || action === 'status') && req.method === 'GET') {
-      const tokens = await hahaOAuthService.loadTokens()
+      const tokens = await hahaOAuthService.ensureFreshTokens()
       if (!tokens) {
         return Response.json({ loggedIn: false })
       }

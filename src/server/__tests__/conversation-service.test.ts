@@ -11,6 +11,7 @@ describe('ConversationService', () => {
   let originalBaseUrl: string | undefined
   let originalModel: string | undefined
   let originalEntrypoint: string | undefined
+  let originalOAuthToken: string | undefined
 
   beforeEach(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cc-haha-conversation-service-'))
@@ -19,11 +20,13 @@ describe('ConversationService', () => {
     originalBaseUrl = process.env.ANTHROPIC_BASE_URL
     originalModel = process.env.ANTHROPIC_MODEL
     originalEntrypoint = process.env.CLAUDE_CODE_ENTRYPOINT
+    originalOAuthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN
 
     process.env.CLAUDE_CONFIG_DIR = tmpDir
     process.env.ANTHROPIC_AUTH_TOKEN = 'test-token'
     process.env.ANTHROPIC_BASE_URL = 'https://example.invalid/anthropic'
     process.env.ANTHROPIC_MODEL = 'test-model'
+    process.env.CLAUDE_CODE_OAUTH_TOKEN = 'inherited-parent-oauth-token'
     // Clear inherited CLAUDE_CODE_ENTRYPOINT so tests can assert whether
     // buildChildEnv injects it or not without interference from the shell env.
     delete process.env.CLAUDE_CODE_ENTRYPOINT
@@ -44,6 +47,9 @@ describe('ConversationService', () => {
 
     if (originalEntrypoint === undefined) delete process.env.CLAUDE_CODE_ENTRYPOINT
     else process.env.CLAUDE_CODE_ENTRYPOINT = originalEntrypoint
+
+    if (originalOAuthToken === undefined) delete process.env.CLAUDE_CODE_OAUTH_TOKEN
+    else process.env.CLAUDE_CODE_OAUTH_TOKEN = originalOAuthToken
 
     await fs.rm(tmpDir, { recursive: true, force: true })
   })
@@ -122,6 +128,22 @@ describe('ConversationService', () => {
 
     expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBeUndefined()
     expect(env.CLAUDE_CODE_ENTRYPOINT).toBeUndefined()
+  })
+
+  test('buildChildEnv does not leak inherited CLAUDE_CODE_OAUTH_TOKEN when official token is unavailable', async () => {
+    const ccHahaDir = path.join(tmpDir, 'cc-haha')
+    await fs.mkdir(ccHahaDir, { recursive: true })
+    await fs.writeFile(
+      path.join(ccHahaDir, 'settings.json'),
+      JSON.stringify({ env: {} }),
+      'utf-8',
+    )
+
+    const service = new ConversationService() as any
+    const env = (await service.buildChildEnv('/tmp')) as Record<string, string>
+
+    expect(env.CLAUDE_CODE_ENTRYPOINT).toBe('claude-desktop')
+    expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBeUndefined()
   })
 
   test('uses bun entrypoint fallback on Windows dev mode', () => {

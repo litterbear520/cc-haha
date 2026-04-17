@@ -41,7 +41,6 @@ export const useHahaOAuthStore = create<HahaOAuthState>((set, get) => {
       try {
         const res = await hahaOAuthApi.start()
         set({ isLoading: false })
-        get().startPolling()
         return { authorizeUrl: res.authorizeUrl }
       } catch (err) {
         set({

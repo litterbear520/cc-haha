@@ -101,6 +101,24 @@ describe('HahaOAuthService — session management', () => {
     expect(service.consumeSession(session.state)).not.toBeNull()
     expect(service.getSession(session.state)).toBeNull()
   })
+
+  test('completeSession stores subscription type fetched from profile info', async () => {
+    const session = service.startSession({ serverPort: 54321 })
+    ;(service as any).exchangeWithCustomCallback = async () => ({
+      access_token: 'fresh-access-token',
+      refresh_token: 'fresh-refresh-token',
+      expires_in: 3600,
+      scope: 'user:inference',
+    })
+    service.setFetchProfileFn(async () => ({
+      subscriptionType: 'team',
+    }))
+
+    const tokens = await service.completeSession('authorization-code', session.state)
+
+    expect(tokens.subscriptionType).toBe('team')
+    expect((await service.loadTokens())?.subscriptionType).toBe('team')
+  })
 })
 
 describe('HahaOAuthService — ensureFreshAccessToken', () => {
